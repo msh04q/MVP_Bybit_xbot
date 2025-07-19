@@ -1,4 +1,6 @@
 import logging
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 import nest_asyncio
 import asyncio
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
@@ -8,6 +10,45 @@ import httpx
 import re
 
 nest_asyncio.apply()
+
+
+def setup_logging():
+    # Создаем директорию для логов, если её нет
+    logs_dir = Path("logs")
+    logs_dir.mkdir(exist_ok=True)
+    
+    # Формат логов
+    log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    formatter = logging.Formatter(log_format)
+    
+    # Базовый уровень логирования
+    logging.basicConfig(level=logging.INFO, handlers=[])
+    
+    # Основной логгер
+    logger = logging.getLogger()
+    
+    # Консольный вывод (для Render и локального запуска)
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+    
+    # Файловый вывод с ротацией (для истории)
+    file_handler = RotatingFileHandler(
+        filename=logs_dir / "bot.log",
+        maxBytes=5 * 1024 * 1024,  # 5 MB
+        backupCount=3,
+        encoding="utf-8"
+    )
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    
+    # Уровень логирования для внешних библиотек
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("pybit").setLevel(logging.WARNING)
+    
+    # Тестовое сообщение
+    logger.info("Logging setup complete")
+
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 
@@ -221,30 +262,33 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Неизвестная команда. Нажмите /help для списка команд.",
             reply_markup=keyboard
         )
-
 async def main():
-    # Настройка логирования
-    logging.basicConfig(
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        level=logging.INFO
-    )
-    
-    app = ApplicationBuilder().token(TOKEN).build()
-    
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CommandHandler("about", about_command))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
-    app.add_handler(CallbackQueryHandler(button_handler))
-    
-    logging.info("Bot started and polling...")
-    await app.run_polling()
+    try:
+        # Настройка логирования (только здесь)
+        setup_logging()
+        
+        app = ApplicationBuilder().token(TOKEN).build()
+        
+        # Регистрация обработчиков
+        app.add_handler(CommandHandler("start", start))
+        app.add_handler(CommandHandler("help", help_command))
+        app.add_handler(CommandHandler("about", about_command))
+        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
+        app.add_handler(CallbackQueryHandler(button_handler))
+        
+        logging.info("Bot started and polling...")
+        await app.run_polling()
+        
+    except Exception as e:
+        logging.critical(f"Fatal error in main: {e}", exc_info=True)
+        raise
 
 if __name__ == "__main__":
-    # Для тестирования работы с Bybit API
-    from bybit_client import get_spot_tickers
-    tickers = get_spot_tickers()
-    print(f"Всего активных монет: {len(tickers)}")
-    print("Примеры:", tickers[:5])
-    
+    import signal
+    def shutdown(signum, frame):
+        logging.info("Bot stopped by signal")
+        raise SystemExit(0)
+
+    signal.signal(signal.SIGTERM, shutdown)
+    signal.signal(signal.SIGINT, shutdown)
     asyncio.run(main())
