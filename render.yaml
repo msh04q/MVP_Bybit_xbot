@@ -1,0 +1,19 @@
+# Exported from Render on 2025-07-20T14:20:32Z
+services:
+- type: web
+  name: MVP_Bybit_Pump_xbot
+  runtime: python
+  repo: https://github.com/msh04q/MVP_Bybit_xbot
+  plan: free
+  envVars:
+  - key: TELEGRAM_TOKEN
+    sync: false
+  - key: BYBIT_API_SECRET
+    sync: false
+  - key: BYBIT_API_KEY
+    sync: false
+  region: frankfurt
+  buildCommand: pip install -r requirements.txt
+  startCommand: python main.py
+  autoDeployTrigger: commit
+version: "1"
