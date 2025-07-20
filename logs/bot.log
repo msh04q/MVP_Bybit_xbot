@@ -8,3 +8,212 @@
 2025-07-20 01:09:16,932 - root - INFO - 1. RPKUSDT: 37.67%
 2025-07-20 01:09:16,935 - root - INFO - 2. ELXUSDT: 32.36%
 2025-07-20 01:09:16,937 - root - INFO - 3. ORDERUSDT: 23.09%
+2025-07-20 01:22:05,173 - root - INFO - Logging setup complete
+2025-07-20 01:22:05,737 - root - INFO - Bot started and polling...
+2025-07-20 01:22:05,765 - root - CRITICAL - Fatal error in main: Cannot close a running event loop
+Traceback (most recent call last):
+  File "C:\Users\shodiev\MVP_Bybit_xbot\venv\Lib\site-packages\telegram\ext\_application.py", line 1036, in __run
+    raise exc
+  File "C:\Users\shodiev\MVP_Bybit_xbot\venv\Lib\site-packages\telegram\ext\_application.py", line 1025, in __run
+    loop.run_until_complete(self.initialize())
+  File "C:\Python\Lib\asyncio\base_events.py", line 629, in run_until_complete
+    self._check_running()
+  File "C:\Python\Lib\asyncio\base_events.py", line 588, in _check_running
+    raise RuntimeError('This event loop is already running')
+RuntimeError: This event loop is already running
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\shodiev\MVP_Bybit_xbot\venv\Lib\site-packages\telegram\ext\_application.py", line 1047, in __run
+    loop.run_until_complete(self.shutdown())
+  File "C:\Python\Lib\asyncio\base_events.py", line 629, in run_until_complete
+    self._check_running()
+  File "C:\Python\Lib\asyncio\base_events.py", line 588, in _check_running
+    raise RuntimeError('This event loop is already running')
+RuntimeError: This event loop is already running
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "c:\Users\shodiev\MVP_Bybit_xbot\main.py", line 278, in main
+    await app.run_polling()
+          ^^^^^^^^^^^^^^^^^
+  File "C:\Users\shodiev\MVP_Bybit_xbot\venv\Lib\site-packages\telegram\ext\_application.py", line 836, in run_polling
+    return self.__run(
+           ^^^^^^^^^^^
+  File "C:\Users\shodiev\MVP_Bybit_xbot\venv\Lib\site-packages\telegram\ext\_application.py", line 1052, in __run
+    loop.close()
+  File "C:\Python\Lib\asyncio\proactor_events.py", line 686, in close
+    raise RuntimeError("Cannot close a running event loop")
+RuntimeError: Cannot close a running event loop
+2025-07-20 01:44:53,734 - root - INFO - Logging setup complete
+2025-07-20 01:44:54,374 - root - INFO - Bot started
+2025-07-20 01:44:54,415 - root - CRITICAL - Fatal error: Cannot close a running event loop
+Traceback (most recent call last):
+  File "C:\Users\shodiev\MVP_Bybit_xbot\venv\Lib\site-packages\telegram\ext\_application.py", line 1047, in __run
+    loop.run_until_complete(self._bootstrap_initialize(max_retries=bootstrap_retries))
+  File "C:\Python\Lib\asyncio\base_events.py", line 629, in run_until_complete
+    self._check_running()
+  File "C:\Python\Lib\asyncio\base_events.py", line 588, in _check_running
+    raise RuntimeError('This event loop is already running')
+RuntimeError: This event loop is already running
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\shodiev\MVP_Bybit_xbot\venv\Lib\site-packages\telegram\ext\_application.py", line 1072, in __run
+    loop.run_until_complete(self.shutdown())
+  File "C:\Python\Lib\asyncio\base_events.py", line 629, in run_until_complete
+    self._check_running()
+  File "C:\Python\Lib\asyncio\base_events.py", line 588, in _check_running
+    raise RuntimeError('This event loop is already running')
+RuntimeError: This event loop is already running
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "c:\Users\shodiev\MVP_Bybit_xbot\main.py", line 237, in main
+    await app.run_polling()
+          ^^^^^^^^^^^^^^^^^
+  File "C:\Users\shodiev\MVP_Bybit_xbot\venv\Lib\site-packages\telegram\ext\_application.py", line 837, in run_polling
+    return self.__run(
+           ^^^^^^^^^^^
+  File "C:\Users\shodiev\MVP_Bybit_xbot\venv\Lib\site-packages\telegram\ext\_application.py", line 1077, in __run
+    loop.close()
+  File "C:\Python\Lib\asyncio\proactor_events.py", line 686, in close
+    raise RuntimeError("Cannot close a running event loop")
+RuntimeError: Cannot close a running event loop
+2025-07-20 01:46:29,938 - root - INFO - Logging setup complete
+2025-07-20 01:46:30,520 - root - CRITICAL - Fatal error: You must pass the token you received from https://t.me/Botfather!
+Traceback (most recent call last):
+  File "C:\Users\shodiev\MVP_Bybit_xbot\main.py", line 228, in main
+    app = ApplicationBuilder().token(TOKEN).build()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shodiev\MVP_Bybit_xbot\venv\Lib\site-packages\telegram\ext\_applicationbuilder.py", line 308, in build
+    bot: Bot = self._build_ext_bot()  # build a bot
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shodiev\MVP_Bybit_xbot\venv\Lib\site-packages\telegram\ext\_applicationbuilder.py", line 270, in _build_ext_bot
+    return ExtBot(
+           ^^^^^^^
+  File "C:\Users\shodiev\MVP_Bybit_xbot\venv\Lib\site-packages\telegram\ext\_extbot.py", line 243, in __init__
+    super().__init__(
+  File "C:\Users\shodiev\MVP_Bybit_xbot\venv\Lib\site-packages\telegram\_bot.py", line 327, in __init__
+    raise InvalidToken("You must pass the token you received from https://t.me/Botfather!")
+telegram.error.InvalidToken: You must pass the token you received from https://t.me/Botfather!
+2025-07-20 01:47:31,458 - root - INFO - Logging setup complete
+2025-07-20 01:47:32,037 - root - CRITICAL - Fatal error: You must pass the token you received from https://t.me/Botfather!
+Traceback (most recent call last):
+  File "C:\Users\shodiev\MVP_Bybit_xbot\main.py", line 228, in main
+    app = ApplicationBuilder().token(TOKEN).build()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shodiev\MVP_Bybit_xbot\venv\Lib\site-packages\telegram\ext\_applicationbuilder.py", line 308, in build
+    bot: Bot = self._build_ext_bot()  # build a bot
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shodiev\MVP_Bybit_xbot\venv\Lib\site-packages\telegram\ext\_applicationbuilder.py", line 270, in _build_ext_bot
+    return ExtBot(
+           ^^^^^^^
+  File "C:\Users\shodiev\MVP_Bybit_xbot\venv\Lib\site-packages\telegram\ext\_extbot.py", line 243, in __init__
+    super().__init__(
+  File "C:\Users\shodiev\MVP_Bybit_xbot\venv\Lib\site-packages\telegram\_bot.py", line 327, in __init__
+    raise InvalidToken("You must pass the token you received from https://t.me/Botfather!")
+telegram.error.InvalidToken: You must pass the token you received from https://t.me/Botfather!
+2025-07-20 01:50:39,713 - root - INFO - Logging setup complete
+2025-07-20 01:50:40,308 - root - INFO - Bot started and polling...
+2025-07-20 01:50:40,323 - root - CRITICAL - Fatal error in main: Cannot close a running event loop
+Traceback (most recent call last):
+  File "C:\Users\shodiev\MVP_Bybit_xbot\venv\Lib\site-packages\telegram\ext\_application.py", line 1047, in __run
+    loop.run_until_complete(self._bootstrap_initialize(max_retries=bootstrap_retries))
+  File "C:\Python\Lib\asyncio\base_events.py", line 629, in run_until_complete
+    self._check_running()
+  File "C:\Python\Lib\asyncio\base_events.py", line 588, in _check_running
+    raise RuntimeError('This event loop is already running')
+RuntimeError: This event loop is already running
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\shodiev\MVP_Bybit_xbot\venv\Lib\site-packages\telegram\ext\_application.py", line 1072, in __run
+    loop.run_until_complete(self.shutdown())
+  File "C:\Python\Lib\asyncio\base_events.py", line 629, in run_until_complete
+    self._check_running()
+  File "C:\Python\Lib\asyncio\base_events.py", line 588, in _check_running
+    raise RuntimeError('This event loop is already running')
+RuntimeError: This event loop is already running
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\shodiev\MVP_Bybit_xbot\main.py", line 278, in main
+    await app.run_polling()
+          ^^^^^^^^^^^^^^^^^
+  File "C:\Users\shodiev\MVP_Bybit_xbot\venv\Lib\site-packages\telegram\ext\_application.py", line 837, in run_polling
+    return self.__run(
+           ^^^^^^^^^^^
+  File "C:\Users\shodiev\MVP_Bybit_xbot\venv\Lib\site-packages\telegram\ext\_application.py", line 1077, in __run
+    loop.close()
+  File "C:\Python\Lib\asyncio\proactor_events.py", line 686, in close
+    raise RuntimeError("Cannot close a running event loop")
+RuntimeError: Cannot close a running event loop
+2025-07-20 01:52:06,477 - root - INFO - Logging setup complete
+2025-07-20 01:52:07,076 - root - INFO - Bot started and polling...
+2025-07-20 01:52:07,091 - root - CRITICAL - Fatal error in main: Cannot close a running event loop
+Traceback (most recent call last):
+  File "C:\Users\shodiev\MVP_Bybit_xbot\venv\Lib\site-packages\telegram\ext\_application.py", line 1047, in __run
+    loop.run_until_complete(self._bootstrap_initialize(max_retries=bootstrap_retries))
+  File "C:\Python\Lib\asyncio\base_events.py", line 629, in run_until_complete
+    self._check_running()
+  File "C:\Python\Lib\asyncio\base_events.py", line 588, in _check_running
+    raise RuntimeError('This event loop is already running')
+RuntimeError: This event loop is already running
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\shodiev\MVP_Bybit_xbot\venv\Lib\site-packages\telegram\ext\_application.py", line 1072, in __run
+    loop.run_until_complete(self.shutdown())
+  File "C:\Python\Lib\asyncio\base_events.py", line 629, in run_until_complete
+    self._check_running()
+  File "C:\Python\Lib\asyncio\base_events.py", line 588, in _check_running
+    raise RuntimeError('This event loop is already running')
+RuntimeError: This event loop is already running
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\shodiev\MVP_Bybit_xbot\main.py", line 278, in main
+    await app.run_polling()
+          ^^^^^^^^^^^^^^^^^
+  File "C:\Users\shodiev\MVP_Bybit_xbot\venv\Lib\site-packages\telegram\ext\_application.py", line 837, in run_polling
+    return self.__run(
+           ^^^^^^^^^^^
+  File "C:\Users\shodiev\MVP_Bybit_xbot\venv\Lib\site-packages\telegram\ext\_application.py", line 1077, in __run
+    loop.close()
+  File "C:\Python\Lib\asyncio\proactor_events.py", line 686, in close
+    raise RuntimeError("Cannot close a running event loop")
+RuntimeError: Cannot close a running event loop
+2025-07-20 01:53:15,131 - root - INFO - Logging setup complete
+2025-07-20 01:53:15,720 - root - INFO - Bot starting...
+2025-07-20 01:53:16,316 - telegram.ext.Application - INFO - Application started
+2025-07-20 01:53:16,317 - root - INFO - Bot started successfully
+2025-07-20 01:54:45,039 - root - INFO - Logging setup complete
+2025-07-20 01:54:45,641 - root - INFO - Bot starting...
+2025-07-20 01:54:46,228 - telegram.ext.Application - INFO - Application started
+2025-07-20 01:54:46,229 - root - INFO - Bot started successfully
+2025-07-20 02:05:46,322 - root - INFO - Logging setup complete
+2025-07-20 02:05:47,422 - root - INFO - Bot starting...
+2025-07-20 02:05:48,587 - telegram.ext.Application - INFO - Application started
+2025-07-20 02:05:48,589 - root - INFO - Bot started successfully
+2025-07-20 02:14:02,364 - root - INFO - Logging setup complete
+2025-07-20 02:14:03,512 - root - INFO - Bot started and polling...
+2025-07-20 02:14:04,611 - telegram.ext.Application - INFO - Application started
+2025-07-20 21:51:55,989 - root - INFO - Logging setup complete
+2025-07-20 21:51:57,046 - root - INFO - Bot started and polling...
+2025-07-20 21:51:59,473 - telegram.ext.Application - INFO - Application started
+2025-07-20 21:52:43,128 - root - INFO - Top 3 for '1m':
+2025-07-20 21:52:43,138 - root - INFO - 1. QORPOUSDT: 1.79%
+2025-07-20 21:52:43,139 - root - INFO - 2. OASUSDT: 0.56%
+2025-07-20 21:52:43,140 - root - INFO - 3. XZKUSDT: 0.55%
+2025-07-21 01:03:23,037 - root - INFO - Logging setup complete
+2025-07-21 01:03:23,701 - root - INFO - Bot started and polling...
+2025-07-21 01:03:24,847 - telegram.ext.Application - INFO - Application started
