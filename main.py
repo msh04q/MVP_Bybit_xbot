@@ -8,46 +8,48 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, Cal
 import os
 import httpx
 import re
+from flask import Flask, Response  # Добавлено для health check
 
+# Инициализация Flask app для health check
+flask_app = Flask(__name__)
 nest_asyncio.apply()
 
+@flask_app.route('/health')
+def health_check():
+    """Endpoint для health check на Render"""
+    return Response("OK", status=200)
 
 def setup_logging():
-    # Создаем директорию для логов, если её нет
     logs_dir = Path("logs")
     logs_dir.mkdir(exist_ok=True)
     
-    # Формат логов
     log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     formatter = logging.Formatter(log_format)
     
-    # Базовый уровень логирования
     logging.basicConfig(level=logging.INFO, handlers=[])
-    
-    # Основной логгер
     logger = logging.getLogger()
     
-    # Консольный вывод (для Render и локального запуска)
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
     
-    # Файловый вывод с ротацией (для истории)
     file_handler = RotatingFileHandler(
         filename=logs_dir / "bot.log",
-        maxBytes=5 * 1024 * 1024,  # 5 MB
+        maxBytes=5 * 1024 * 1024,
         backupCount=3,
         encoding="utf-8"
     )
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
     
-    # Уровень логирования для внешних библиотек
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("pybit").setLevel(logging.WARNING)
     
-    # Тестовое сообщение
     logger.info("Logging setup complete")
+
+TOKEN = os.getenv("TELEGRAM_TOKEN")
+if not TOKEN:
+    raise ValueError("TELEGRAM_TOKEN environment variable is not set")
 
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -262,14 +264,13 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Неизвестная команда. Нажмите /help для списка команд.",
             reply_markup=keyboard
         )
+
 async def main():
     try:
-        # Настройка логирования (только здесь)
         setup_logging()
         
         app = ApplicationBuilder().token(TOKEN).build()
         
-        # Регистрация обработчиков
         app.add_handler(CommandHandler("start", start))
         app.add_handler(CommandHandler("help", help_command))
         app.add_handler(CommandHandler("about", about_command))
@@ -277,7 +278,12 @@ async def main():
         app.add_handler(CallbackQueryHandler(button_handler))
         
         logging.info("Bot started and polling...")
-        await app.run_polling()
+        
+        # Запускаем Flask в отдельном потоке для health check
+        from threading import Thread
+        Thread(target=lambda: flask_app.run(port=5000, host='0.0.0.0')).start()
+        
+        await app.run_polling(drop_pending_updates=True)
         
     except Exception as e:
         logging.critical(f"Fatal error in main: {e}", exc_info=True)
@@ -291,4 +297,10 @@ if __name__ == "__main__":
 
     signal.signal(signal.SIGTERM, shutdown)
     signal.signal(signal.SIGINT, shutdown)
-    asyncio.run(main())
+    
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logging.info("Bot stopped by user")
+    except Exception as e:
+        logging.critical(f"Unexpected error: {e}", exc_info=True)
