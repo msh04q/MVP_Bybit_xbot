@@ -8,8 +8,8 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, Cal
 import os
 import httpx
 import re
-from flask import Flask, Response  # Добавлено для health check
-
+from flask import Flask, Response, request
+import sys
 # Инициализация Flask app для health check
 flask_app = Flask(__name__)
 nest_asyncio.apply()
@@ -18,6 +18,15 @@ nest_asyncio.apply()
 def health_check():
     """Endpoint для health check на Render"""
     return Response("OK", status=200)
+
+app = None
+
+@flask_app.route(f'/{os.getenv("TELEGRAM_TOKEN")}', methods=['POST'])
+def telegram_webhook():
+    global app
+    update = Update.de_json(request.get_json(force=True), app.bot)
+    asyncio.create_task(app.process_update(update))
+    return "OK", 200
 
 def setup_logging():
     logs_dir = Path("logs")
@@ -265,26 +274,29 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=keyboard
         )
 
+
 async def main():
+    global app
     try:
         setup_logging()
-        
         app = ApplicationBuilder().token(TOKEN).build()
-        
         app.add_handler(CommandHandler("start", start))
         app.add_handler(CommandHandler("help", help_command))
         app.add_handler(CommandHandler("about", about_command))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
         app.add_handler(CallbackQueryHandler(button_handler))
-        
-        logging.info("Bot started and polling...")
-        
-        # Запускаем Flask в отдельном потоке для health check
-        from threading import Thread
-        Thread(target=lambda: flask_app.run(port=5000, host='0.0.0.0')).start()
-        
-        await app.run_polling(drop_pending_updates=True)
-        
+        logging.info("Bot started...")
+
+        # Если переменная окружения RENDER_EXTERNAL_HOSTNAME есть — запускаем webhook
+        render_host = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+        if render_host:
+            webhook_url = f"https://{render_host}/{TOKEN}"
+            await app.bot.set_webhook(webhook_url)
+            logging.info(f"Webhook set: {webhook_url}")
+            flask_app.run(host='0.0.0.0', port=5000)
+        else:
+            # Локально — polling
+            await app.run_polling()
     except Exception as e:
         logging.critical(f"Fatal error in main: {e}", exc_info=True)
         raise
@@ -304,3 +316,4 @@ if __name__ == "__main__":
         logging.info("Bot stopped by user")
     except Exception as e:
         logging.critical(f"Unexpected error: {e}", exc_info=True)
+
