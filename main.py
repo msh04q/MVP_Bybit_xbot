@@ -10,22 +10,31 @@ import httpx
 import re
 from flask import Flask, Response, request
 import sys
+from threading import Thread
+
 # Инициализация Flask app для health check
 flask_app = Flask(__name__)
 nest_asyncio.apply()
+
+# Глобальная переменная для приложения Telegram
+telegram_app = None
 
 @flask_app.route('/health')
 def health_check():
     """Endpoint для health check на Render"""
     return Response("OK", status=200)
 
-app = None
 
 @flask_app.route(f'/{os.getenv("TELEGRAM_TOKEN")}', methods=['POST'])
 def telegram_webhook():
-    global app
-    update = Update.de_json(request.get_json(force=True), app.bot)
-    asyncio.create_task(app.process_update(update))
+    if telegram_app is None:
+        return "Application not initialized", 500
+        
+    update = Update.de_json(request.get_json(force=True), telegram_app.bot)
+    asyncio.run_coroutine_threadsafe(
+        telegram_app.process_update(update),
+        telegram_app.update_queue._loop
+    )
     return "OK", 200
 
 def setup_logging():
@@ -56,12 +65,57 @@ def setup_logging():
     
     logger.info("Logging setup complete")
 
-TOKEN = os.getenv("TELEGRAM_TOKEN")
-if not TOKEN:
-    raise ValueError("TELEGRAM_TOKEN environment variable is not set")
+async def setup_telegram_app():
+    """Настройка и возврат Telegram приложения"""
+    global telegram_app
+    
+    TOKEN = os.getenv("TELEGRAM_TOKEN")
+    if not TOKEN:
+        raise ValueError("TELEGRAM_TOKEN environment variable is not set")
+    
+    telegram_app = ApplicationBuilder().token(TOKEN).build()
+    
+    # Регистрация обработчиков
+    telegram_app.add_handler(CommandHandler("start", start))
+    telegram_app.add_handler(CommandHandler("help", help_command))
+    telegram_app.add_handler(CommandHandler("about", about_command))
+    telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
+    telegram_app.add_handler(CallbackQueryHandler(button_handler))
+    
+    return telegram_app
 
+async def run_webhook():
+    """Запуск в режиме webhook"""
+    global telegram_app
+    
+    await setup_telegram_app()
+    render_host = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+    webhook_url = f"https://{render_host}/{os.getenv('TELEGRAM_TOKEN')}"
+    
+    await telegram_app.bot.set_webhook(webhook_url)
+    logging.info(f"Webhook set up: {webhook_url}")
+    
+    # Запуск Flask в отдельном потоке
+    flask_thread = Thread(target=lambda: flask_app.run(
+        host='0.0.0.0', 
+        port=5000,
+        debug=False,
+        use_reloader=False
+    ))
+    flask_thread.daemon = True
+    flask_thread.start()
+    
+    # Бесконечный цикл для поддержания работы приложения
+    while True:
+        await asyncio.sleep(3600)  # Проверка каждые 60 минут
 
-TOKEN = os.getenv("TELEGRAM_TOKEN")
+async def run_polling():
+    """Запуск в режиме polling (для локальной разработки)"""
+    global telegram_app
+    
+    await setup_telegram_app()
+    await telegram_app.run_polling()
+
 
 # Клавиатура с кнопками команд
 buttons = [
@@ -274,32 +328,96 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=keyboard
         )
 
-
 async def main():
-    global app
+    """Основная функция запуска бота с обработкой всех сценариев"""
     try:
+        # Инициализация логирования
         setup_logging()
-        app = ApplicationBuilder().token(TOKEN).build()
-        app.add_handler(CommandHandler("start", start))
-        app.add_handler(CommandHandler("help", help_command))
-        app.add_handler(CommandHandler("about", about_command))
-        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
-        app.add_handler(CallbackQueryHandler(button_handler))
-        logging.info("Bot started...")
-
-        # Если переменная окружения RENDER_EXTERNAL_HOSTNAME есть — запускаем webhook
-        render_host = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
-        if render_host:
-            webhook_url = f"https://{render_host}/{TOKEN}"
-            await app.bot.set_webhook(webhook_url)
-            logging.info(f"Webhook set: {webhook_url}")
-            flask_app.run(host='0.0.0.0', port=5000)
+        logger = logging.getLogger(__name__)
+        
+        # Создаем приложение Telegram
+        global telegram_app
+        telegram_app = await setup_telegram_app()
+        
+        # Определяем режим работы (Webhook/Polling)
+        if os.environ.get('RENDER'):
+            logger.info("Starting in WEBHOOK mode (Production)")
+            
+            # Получаем URL для webhook
+            render_host = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+            if not render_host:
+                raise ValueError("RENDER_EXTERNAL_HOSTNAME environment variable is missing")
+            
+            token = os.getenv("TELEGRAM_TOKEN")
+            if not token:
+                raise ValueError("TELEGRAM_TOKEN environment variable is missing")
+                
+            webhook_url = f"https://{render_host}/{token}"
+            
+            # Настраиваем webhook
+            try:
+                await telegram_app.bot.set_webhook(
+                    webhook_url,
+                    drop_pending_updates=True,
+                    allowed_updates=Update.ALL_TYPES,
+                    secret_token=os.getenv("WEBHOOK_SECRET")  # Добавляем секрет для безопасности
+                )
+                logger.info(f"Webhook successfully configured: {webhook_url}")
+            except Exception as webhook_err:
+                logger.error(f"Failed to set webhook: {webhook_err}")
+                raise
+            
+            # Запускаем Flask в отдельном потоке
+            flask_thread = Thread(
+                target=run_flask,
+                name="FlaskThread",
+                daemon=True
+            )
+            flask_thread.start()
+            logger.info("Flask server started in background thread")
+            
+            # Бесконечный цикл для поддержания работы
+            try:
+                while True:
+                    await asyncio.sleep(3600)  # Проверка каждые 60 минут
+            except asyncio.CancelledError:
+                logger.info("Received cancellation signal")
+                
         else:
-            # Локально — polling
-            await app.run_polling()
+            logger.info("Starting in POLLING mode (Development)")
+            try:
+                await telegram_app.run_polling(
+                    drop_pending_updates=True,
+                    allowed_updates=Update.ALL_TYPES,
+                    close_loop=False
+                )
+            except asyncio.CancelledError:
+                logger.info("Polling mode cancelled")
+            
     except Exception as e:
-        logging.critical(f"Fatal error in main: {e}", exc_info=True)
-        raise
+        logger.critical(f"Fatal error in main: {str(e)}", exc_info=True)
+        
+        # Пытаемся корректно остановить приложение
+        try:
+            if telegram_app:
+                await telegram_app.stop()
+                logger.info("Telegram application stopped gracefully")
+        except Exception as stop_err:
+            logger.error(f"Error during shutdown: {stop_err}")
+        
+        # В production окружении пробрасываем исключение дальше
+        if os.environ.get('RENDER'):
+            raise
+        sys.exit(1)
+        
+def run_flask():
+    """Запуск Flask сервера"""
+    flask_app.run(
+        host='0.0.0.0',
+        port=5000,
+        debug=False,
+        use_reloader=False
+    )
 
 if __name__ == "__main__":
     import signal
