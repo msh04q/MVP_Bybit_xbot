@@ -1,6 +1,5 @@
+    
 import logging
-from logging.handlers import RotatingFileHandler
-from pathlib import Path
 import nest_asyncio
 import asyncio
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
@@ -8,114 +7,12 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, Cal
 import os
 import httpx
 import re
-from flask import Flask, Response, request
-import sys
-from threading import Thread
+from dotenv import load_dotenv
+load_dotenv()
 
-# Инициализация Flask app для health check
-flask_app = Flask(__name__)
 nest_asyncio.apply()
 
-# Глобальная переменная для приложения Telegram
-telegram_app = None
-
-@flask_app.route('/health')
-def health_check():
-    """Endpoint для health check на Render"""
-    return Response("OK", status=200)
-
-
-@flask_app.route(f'/{os.getenv("TELEGRAM_TOKEN")}', methods=['POST'])
-def telegram_webhook():
-    if telegram_app is None:
-        return "Application not initialized", 500
-        
-    update = Update.de_json(request.get_json(force=True), telegram_app.bot)
-    asyncio.run_coroutine_threadsafe(
-        telegram_app.process_update(update),
-        telegram_app.update_queue._loop
-    )
-    return "OK", 200
-
-def setup_logging():
-    logs_dir = Path("logs")
-    logs_dir.mkdir(exist_ok=True)
-    
-    log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    formatter = logging.Formatter(log_format)
-    
-    logging.basicConfig(level=logging.INFO, handlers=[])
-    logger = logging.getLogger()
-    
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
-    
-    file_handler = RotatingFileHandler(
-        filename=logs_dir / "bot.log",
-        maxBytes=5 * 1024 * 1024,
-        backupCount=3,
-        encoding="utf-8"
-    )
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
-    
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    logging.getLogger("pybit").setLevel(logging.WARNING)
-    
-    logger.info("Logging setup complete")
-
-async def setup_telegram_app():
-    """Настройка и возврат Telegram приложения"""
-    global telegram_app
-    
-    TOKEN = os.getenv("TELEGRAM_TOKEN")
-    if not TOKEN:
-        raise ValueError("TELEGRAM_TOKEN environment variable is not set")
-    
-    telegram_app = ApplicationBuilder().token(TOKEN).build()
-    
-    # Регистрация обработчиков
-    telegram_app.add_handler(CommandHandler("start", start))
-    telegram_app.add_handler(CommandHandler("help", help_command))
-    telegram_app.add_handler(CommandHandler("about", about_command))
-    telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
-    telegram_app.add_handler(CallbackQueryHandler(button_handler))
-    
-    return telegram_app
-
-async def run_webhook():
-    """Запуск в режиме webhook"""
-    global telegram_app
-    
-    await setup_telegram_app()
-    render_host = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
-    webhook_url = f"https://{render_host}/{os.getenv('TELEGRAM_TOKEN')}"
-    
-    await telegram_app.bot.set_webhook(webhook_url)
-    logging.info(f"Webhook set up: {webhook_url}")
-    
-    # Запуск Flask в отдельном потоке
-    flask_thread = Thread(target=lambda: flask_app.run(
-        host='0.0.0.0', 
-        port=5000,
-        debug=False,
-        use_reloader=False
-    ))
-    flask_thread.daemon = True
-    flask_thread.start()
-    
-    # Бесконечный цикл для поддержания работы приложения
-    while True:
-        await asyncio.sleep(3600)  # Проверка каждые 60 минут
-
-async def run_polling():
-    """Запуск в режиме polling (для локальной разработки)"""
-    global telegram_app
-    
-    await setup_telegram_app()
-    await telegram_app.run_polling()
-
+TOKEN = os.getenv("TELEGRAM_TOKEN")
 
 # Клавиатура с кнопками команд
 buttons = [
@@ -329,109 +226,28 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 async def main():
-    """Основная функция запуска бота с обработкой всех сценариев"""
-    try:
-        # Инициализация логирования
-        setup_logging()
-        logger = logging.getLogger(__name__)
-        
-        # Создаем приложение Telegram
-        global telegram_app
-        telegram_app = await setup_telegram_app()
-        
-        # Определяем режим работы (Webhook/Polling)
-        if os.environ.get('RENDER'):
-            logger.info("Starting in WEBHOOK mode (Production)")
-            
-            # Получаем URL для webhook
-            render_host = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
-            if not render_host:
-                raise ValueError("RENDER_EXTERNAL_HOSTNAME environment variable is missing")
-            
-            token = os.getenv("TELEGRAM_TOKEN")
-            if not token:
-                raise ValueError("TELEGRAM_TOKEN environment variable is missing")
-                
-            webhook_url = f"https://{render_host}/{token}"
-            
-            # Настраиваем webhook
-            try:
-                await telegram_app.bot.set_webhook(
-                    webhook_url,
-                    drop_pending_updates=True,
-                    allowed_updates=Update.ALL_TYPES,
-                    secret_token=os.getenv("WEBHOOK_SECRET")  # Добавляем секрет для безопасности
-                )
-                logger.info(f"Webhook successfully configured: {webhook_url}")
-            except Exception as webhook_err:
-                logger.error(f"Failed to set webhook: {webhook_err}")
-                raise
-            
-            # Запускаем Flask в отдельном потоке
-            flask_thread = Thread(
-                target=run_flask,
-                name="FlaskThread",
-                daemon=True
-            )
-            flask_thread.start()
-            logger.info("Flask server started in background thread")
-            
-            # Бесконечный цикл для поддержания работы
-            try:
-                while True:
-                    await asyncio.sleep(3600)  # Проверка каждые 60 минут
-            except asyncio.CancelledError:
-                logger.info("Received cancellation signal")
-                
-        else:
-            logger.info("Starting in POLLING mode (Development)")
-            try:
-                await telegram_app.run_polling(
-                    drop_pending_updates=True,
-                    allowed_updates=Update.ALL_TYPES,
-                    close_loop=False
-                )
-            except asyncio.CancelledError:
-                logger.info("Polling mode cancelled")
-            
-    except Exception as e:
-        logger.critical(f"Fatal error in main: {str(e)}", exc_info=True)
-        
-        # Пытаемся корректно остановить приложение
-        try:
-            if telegram_app:
-                await telegram_app.stop()
-                logger.info("Telegram application stopped gracefully")
-        except Exception as stop_err:
-            logger.error(f"Error during shutdown: {stop_err}")
-        
-        # В production окружении пробрасываем исключение дальше
-        if os.environ.get('RENDER'):
-            raise
-        sys.exit(1)
-        
-def run_flask():
-    """Запуск Flask сервера"""
-    flask_app.run(
-        host='0.0.0.0',
-        port=5000,
-        debug=False,
-        use_reloader=False
+    # Настройка логирования
+    logging.basicConfig(
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        level=logging.INFO
     )
+    
+    app = ApplicationBuilder().token(TOKEN).build()
+    
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("about", about_command))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
+    app.add_handler(CallbackQueryHandler(button_handler))
+    
+    logging.info("Bot started and polling...")
+    await app.run_polling()
 
 if __name__ == "__main__":
-    import signal
-    def shutdown(signum, frame):
-        logging.info("Bot stopped by signal")
-        raise SystemExit(0)
-
-    signal.signal(signal.SIGTERM, shutdown)
-    signal.signal(signal.SIGINT, shutdown)
+    # Для тестирования работы с Bybit API
+    from bybit_client import get_spot_tickers
+    tickers = get_spot_tickers()
+    print(f"Всего активных монет: {len(tickers)}")
+    print("Примеры:", tickers[:5])
     
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logging.info("Bot stopped by user")
-    except Exception as e:
-        logging.critical(f"Unexpected error: {e}", exc_info=True)
-
+    asyncio.run(main())
